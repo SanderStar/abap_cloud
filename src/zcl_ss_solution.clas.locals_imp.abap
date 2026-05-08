@@ -102,21 +102,28 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
      DATA(today) = cl_abap_context_info=>get_system_date(  ).
 
      LOOP AT connections_buffer INTO DATA(connection).
-        CONVERT DATE today
-            TIME connection-departure_time
-            TIME ZONE airports[ airport_id = connection-airport_from_id ]-timzone
-            INTO UTCLONG DATA(departure_utclong).
+        TRY.
+            CONVERT DATE today
+                TIME connection-departure_time
+                TIME ZONE airports[ airport_id = connection-airport_from_id ]-timzone
+                INTO UTCLONG DATA(departure_utclong).
 
-        CONVERT DATE today
-            TIME connection-arrival_time
-            TIME ZONE airports[ airport_id = connection-airport_to_id ]-timzone
-            INTO UTCLONG DATA(arrival_utclong).
+            CONVERT DATE today
+                TIME connection-arrival_time
+                TIME ZONE airports[ airport_id = connection-airport_to_id ]-timzone
+                INTO UTCLONG DATA(arrival_utclong).
 
-        connection-duration = utclong_diff(
-              high = arrival_utclong
-              low = departure_utclong ) / 60.
+            connection-duration = utclong_diff(
+                  high = arrival_utclong
+                  low = departure_utclong ) / 60.
 
-        MODIFY connections_buffer FROM connection TRANSPORTING duration.
+            MODIFY connections_buffer FROM connection TRANSPORTING duration.
+
+        CATCH   CX_SY_ITAB_LINE_NOT_FOUND.
+            "DO nothing
+        CATCH CX_SY_CONVERSION_NO_TIME.
+            "Do nothing.
+        ENDTRY.
      ENDLOOP.
   ENDMETHOD.
 
@@ -453,10 +460,10 @@ CLASS lcl_carrier IMPLEMENTATION.
 
   METHOD get_output.
 
-    APPEND |Carrier { me->name } | TO r_result.
-    APPEND |Passenger Flights:  { lines( passenger_flights ) } | TO r_result.
-    APPEND |Average free seats: { get_average_free_seats(  ) } | TO r_result.
-    APPEND |Cargo Flights:      { lines( cargo_flights     ) } | TO r_result.
+    APPEND |{ 'Carrier Name:'(001) } { me->name } | TO r_result.
+    APPEND |{ 'Passenger seats:'(002) } { lines( passenger_flights ) } | TO r_result.
+    APPEND |{ 'Average free seats:'(003) } { get_average_free_seats(  ) } | TO r_result.
+    APPEND |{ 'Cargo Flights:'(004) } { lines( cargo_flights     ) } | TO r_result.
 
   ENDMETHOD.
 
