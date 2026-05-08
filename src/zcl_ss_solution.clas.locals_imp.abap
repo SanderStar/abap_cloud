@@ -23,7 +23,19 @@ CLASS lcl_passenger_flight DEFINITION .
         departure_time  TYPE /dmo/flight_departure_time,
         arrival_time    TYPE /dmo/flight_departure_time,
         duration        TYPE i,
-      END OF st_connection_details.
+      END OF st_connection_details,
+
+      BEGIN OF st_connection_buffer,
+          carrier_id     TYPE /dmo/carrier_id,
+          connection_id  TYPE /dmo/connection_id,
+          airport_from_id TYPE /dmo/airport_from_id,
+          airport_to_id   TYPE /dmo/airport_to_id,
+          departure_time  TYPE /dmo/flight_departure_time,
+          arrival_time    TYPE /dmo/flight_arrival_time,
+          distance         TYPE /dmo/flight_distance,
+          distance_unit    TYPE msehi,
+          duration         TYPE i,
+      END OF st_connection_buffer.
 
     TYPES
       tt_flights TYPE STANDARD TABLE OF REF TO lcl_passenger_flight WITH DEFAULT KEY.
@@ -42,6 +54,7 @@ CLASS lcl_passenger_flight DEFINITION .
     METHODS
       get_description RETURNING VALUE(r_result) TYPE string_table.
 
+    CLASS-METHODS class_constructor.
     CLASS-METHODS
       get_flights_by_carrier
         IMPORTING
@@ -53,7 +66,8 @@ CLASS lcl_passenger_flight DEFINITION .
   PRIVATE SECTION.
 
     CLASS-DATA:
-            flights_buffer TYPE TABLE OF /lrn/passflight.
+            flights_buffer TYPE TABLE OF /lrn/passflight,
+            connections_buffer TYPE TABLE OF st_connection_buffer.
 
     DATA planetype TYPE /dmo/plane_type_id.
 
@@ -70,6 +84,41 @@ CLASS lcl_passenger_flight DEFINITION .
 ENDCLASS.
 
 CLASS lcl_passenger_flight IMPLEMENTATION.
+
+  METHOD class_constructor.
+
+* Read airports
+     SELECT
+     FROM /lrn/airport
+     FIELDS airport_id, timzone
+     INTO TABLE @DATA(airports).
+
+* Set connection details
+      SELECT
+        FROM /dmo/connection
+      FIELDS carrier_id, connection_id, airport_from_id, airport_to_id, departure_time, arrival_time
+        INTO CORRESPONDING FIELDS OF TABLE @connections_buffer.
+
+     DATA(today) = cl_abap_context_info=>get_system_date(  ).
+
+     LOOP AT connections_buffer INTO DATA(connection).
+        CONVERT DATE today
+            TIME connection-departure_time
+            TIME ZONE airports[ airport_id = connection-airport_from_id ]-timzone
+            INTO UTCLONG DATA(departure_utclong).
+
+        CONVERT DATE today
+            TIME connection-arrival_time
+            TIME ZONE airports[ airport_id = connection-airport_to_id ]-timzone
+            INTO UTCLONG DATA(arrival_utclong).
+
+        connection-duration = utclong_diff(
+              high = arrival_utclong
+              low = departure_utclong ) / 60.
+
+        MODIFY connections_buffer FROM connection TRANSPORTING duration.
+     ENDLOOP.
+  ENDMETHOD.
 
   METHOD get_flights_by_carrier.
 
@@ -132,15 +181,9 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
       ENDTRY.
 
 * Set connection details
-      SELECT SINGLE
-        FROM /dmo/connection
-      FIELDS airport_from_id, airport_to_id, departure_time, arrival_time
-       WHERE carrier_id    = @carrier_id
-         AND connection_id = @connection_id
-        INTO @connection_details .
 
-      connection_details-duration = connection_details-arrival_time
-                                  - connection_details-departure_time.
+      connection_details = CORRESPONDING #( connections_buffer[ carrier_id    = i_carrier_id
+                                               connection_id = i_connection_id ] ).
 
     ENDIF.
   ENDMETHOD.
@@ -164,6 +207,7 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
     APPEND |Occupied Seats: { seats_occ } | TO r_result.
     APPEND |Free Seats:     { seats_free } | TO r_result.
     APPEND |Ticket Price:   { price CURRENCY = currency } { currency } | TO r_result.
+    APPEND |Duration:       { connection_details-duration } | TO r_result.
 
   ENDMETHOD.
 
@@ -184,9 +228,9 @@ CLASS lcl_cargo_flight DEFINITION .
     TYPES
        tt_flights TYPE STANDARD TABLE OF REF TO lcl_cargo_flight WITH DEFAULT KEY.
 
-    DATA carrier_id    TYPE /dmo/connection_id    READ-ONLY.
-    DATA connection_id TYPE /dmo/carrier_id       READ-ONLY.
-    DATA flight_date   TYPE /dmo/flight_date      READ-ONLY.
+    DATA carrier_id    TYPE /dmo/carrier_id    READ-ONLY.
+    DATA connection_id TYPE /dmo/connection_id READ-ONLY.
+    DATA flight_date   TYPE /dmo/flight_date   READ-ONLY.
 
     METHODS constructor
       IMPORTING
@@ -330,7 +374,7 @@ CLASS lcl_carrier DEFINITION .
 
   PUBLIC SECTION.
 
-    TYPES t_output TYPE c LENGTH 25.
+    TYPES t_output TYPE string.
     TYPES tt_output TYPE STANDARD TABLE OF t_output
                     WITH NON-UNIQUE DEFAULT KEY.
 
