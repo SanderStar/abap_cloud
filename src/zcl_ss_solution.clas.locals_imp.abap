@@ -35,12 +35,12 @@ CLASS lcl_passenger_flight DEFINITION .
           distance         TYPE /dmo/flight_distance,
           distance_unit    TYPE msehi,
           duration         TYPE i,
+          timezone_from     TYPE timezone,
+          timezone_to TYPE timezone,
       END OF st_connection_buffer.
 
     TYPES
       tt_flights TYPE STANDARD TABLE OF REF TO lcl_passenger_flight WITH DEFAULT KEY.
-    CLASS-DATA:
-            flights_buffer_1 TYPE TABLE OF /lrn/passflight WITH DEFAULT KEY.
 
     METHODS: get_connection_details
       RETURNING
@@ -65,8 +65,20 @@ CLASS lcl_passenger_flight DEFINITION .
   PROTECTED SECTION.
   PRIVATE SECTION.
 
+    TYPES: BEGIN OF st_flights_buffer,
+        carrier_id TYPE /lrn/passflight-carrier_id,
+        connection_id TYPE /lrn/passflight-connection_id,
+        flight_date TYPE /lrn/passflight-flight_date,
+        plane_type_id TYPE /lrn/passflight-plane_type_id,
+        seats_max TYPE /lrn/passflight-seats_max,
+        seats_occupied TYPE /lrn/passflight-seats_occupied,
+        seats_free TYPE i,
+        price TYPE /lrn/passflight-price,
+        currency_code TYPE /lrn/passflight-currency_code,
+        END OF st_flights_buffer.
+
     CLASS-DATA:
-            flights_buffer TYPE TABLE OF /lrn/passflight,
+            flights_buffer TYPE TABLE OF st_flights_buffer,
             connections_buffer TYPE TABLE OF st_connection_buffer.
 
     DATA planetype TYPE /dmo/plane_type_id.
@@ -88,15 +100,20 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
   METHOD class_constructor.
 
 * Read airports
-     SELECT
-     FROM /lrn/airport
-     FIELDS airport_id, timzone
-     INTO TABLE @DATA(airports).
+*     SELECT
+*     FROM /lrn/airport
+*     FIELDS airport_id, timzone
+*     INTO TABLE @DATA(airports).
 
 * Set connection details
       SELECT
-        FROM /dmo/connection
-      FIELDS carrier_id, connection_id, airport_from_id, airport_to_id, departure_time, arrival_time
+        FROM /dmo/connection as c
+        LEFT OUTER JOIN /lrn/airport as a
+        ON c~airport_from_id = a~airport_id
+        LEFT OUTER JOIN /lrn/airport as b
+        ON c~airport_to_id = b~airport_id
+      FIELDS carrier_id, connection_id, airport_from_id, airport_to_id, departure_time, arrival_time,
+             a~timzone as timezone_from, b~timzone as timezone_to
         INTO CORRESPONDING FIELDS OF TABLE @connections_buffer.
 
      DATA(today) = cl_abap_context_info=>get_system_date(  ).
@@ -105,12 +122,14 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
         TRY.
             CONVERT DATE today
                 TIME connection-departure_time
-                TIME ZONE airports[ airport_id = connection-airport_from_id ]-timzone
+*                TIME ZONE airports[ airport_id = connection-airport_from_id ]-timzone
+                 TIME ZONE connection-timezone_from
                 INTO UTCLONG DATA(departure_utclong).
 
             CONVERT DATE today
                 TIME connection-arrival_time
-                TIME ZONE airports[ airport_id = connection-airport_to_id ]-timzone
+*                TIME ZONE airports[ airport_id = connection-airport_to_id ]-timzone
+                TIME ZONE connection-timezone_to
                 INTO UTCLONG DATA(arrival_utclong).
 
             connection-duration = utclong_diff(
@@ -131,7 +150,9 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
 
     SELECT
       FROM /lrn/passflight
-    FIELDS carrier_id, connection_id, flight_date, plane_type_id, seats_max, seats_occupied, price, currency_code
+    FIELDS carrier_id, connection_id, flight_date, plane_type_id, seats_max, seats_occupied,
+           seats_max - seats_occupied as seats_free,
+           price, currency_code
      WHERE carrier_id    = @i_carrier_id
       INTO CORRESPONDING FIELDS OF TABLE @flights_buffer.
 
@@ -155,7 +176,7 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
     CATCH cx_sy_itab_duplicate_key.
         SELECT SINGLE
           FROM /lrn/passflight
-        FIELDS plane_type_id, seats_max, seats_occupied, price, currency_code
+        FIELDS plane_type_id, seats_max, seats_occupied, seats_max - seats_occupied as seats_free, price, currency_code
          WHERE carrier_id    = @i_carrier_id
            AND connection_id = @i_connection_id
            AND flight_date   = @i_flight_date
@@ -170,7 +191,8 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
       planetype = flight_raw-plane_type_id.
       seats_max = flight_raw-seats_max.
       seats_occ = flight_raw-seats_occupied.
-      seats_free = flight_raw-seats_max - flight_raw-seats_occupied.
+*      seats_free = flight_raw-seats_max - flight_raw-seats_occupied.
+      seats_free = flight_raw-seats_free.
 
 * convert currencies
       TRY.
@@ -206,9 +228,18 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
 
   METHOD get_description.
 
-    APPEND |Flight { carrier_id } { connection_id } on { flight_date DATE = USER } | &&
-           |from { connection_details-airport_from_id } to { connection_details-airport_to_id } |
-           TO r_result.
+*    APPEND |Flight { carrier_id } { connection_id } on { flight_date DATE = USER } | &&
+*           |from { connection_details-airport_from_id } to { connection_details-airport_to_id } |
+*           TO r_result.
+    DATA text TYPE string.
+    text = 'Fligth &carrier_id& &connection_id& on &date& from &from& to &to&'(005).
+    text = replace(  val = text sub = '&carrier_id&' with = carrier_id ).
+    text = replace(  val = text sub = '&connection_id&' with = connection_id ).
+    text = replace(  val = text sub = '&date&' with = |{ flight_date DATE = USER }| ).
+    text = replace(  val = text sub = '&from&' with = connection_details-airport_from_id ).
+    text = replace(  val = text sub = '&to&' with = connection_details-airport_to_id ).
+    APPEND text TO r_result.
+
     APPEND |Planetype:      { planetype  } | TO r_result.
     APPEND |Maximum Seats:  { seats_max  } | TO r_result.
     APPEND |Occupied Seats: { seats_occ } | TO r_result.
@@ -280,6 +311,9 @@ CLASS lcl_cargo_flight DEFINITION .
              airport_to_id   TYPE /dmo/airport_to_id,
              departure_time  TYPE /dmo/flight_departure_time,
              arrival_time    TYPE /dmo/flight_arrival_time,
+             seats_max      TYPE /lrn/passflight-seats_max,
+             seats_occupied TYPE /lrn/passflight-seats_occupied,
+             seats_free     TYPE I,
            END OF st_flights_buffer.
 
     TYPES tt_flights_buffer TYPE HASHED TABLE OF st_flights_buffer
@@ -438,7 +472,8 @@ CLASS lcl_carrier IMPLEMENTATION.
 
     SELECT SINGLE
       FROM /dmo/carrier
-    FIELDS name, currency_code
+*    FIELDS name, currency_code
+    FIELDS concat_with_space( carrier_id, name, 1 ), currency_code
      WHERE carrier_id = @i_carrier_id
      INTO ( @me->name, @me->currency_code ).
 
@@ -446,7 +481,7 @@ CLASS lcl_carrier IMPLEMENTATION.
       RAISE EXCEPTION TYPE cx_abap_invalid_value.
     ENDIF.
 
-    name = carrier_id && ` ` && name.
+*    name = carrier_id && ` ` && name.
 
     me->passenger_flights =
         lcl_passenger_flight=>get_flights_by_carrier(

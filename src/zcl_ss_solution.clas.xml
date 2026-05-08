@@ -37,6 +37,12 @@
      <ENTRY>Cargo Flights:</ENTRY>
      <LENGTH>24</LENGTH>
     </item>
+    <item>
+     <ID>I</ID>
+     <KEY>005</KEY>
+     <ENTRY>Fligth &amp;carrier_id&amp; &amp;connection_id&amp; on &amp;date&amp; from &amp;from&amp; to &amp;to&amp;</ENTRY>
+     <LENGTH>132</LENGTH>
+    </item>
    </TPOOL>
   </asx:values>
  </asx:abap>
