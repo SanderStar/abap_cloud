@@ -26,17 +26,15 @@ CLASS lcl_passenger_flight DEFINITION .
       END OF st_connection_details,
 
       BEGIN OF st_connection_buffer,
-          carrier_id     TYPE /dmo/carrier_id,
-          connection_id  TYPE /dmo/connection_id,
-          airport_from_id TYPE /dmo/airport_from_id,
-          airport_to_id   TYPE /dmo/airport_to_id,
-          departure_time  TYPE /dmo/flight_departure_time,
-          arrival_time    TYPE /dmo/flight_arrival_time,
-          distance         TYPE /dmo/flight_distance,
-          distance_unit    TYPE msehi,
-          duration         TYPE i,
-          timezone_from     TYPE timezone,
-          timezone_to TYPE timezone,
+        carrier_id      TYPE /dmo/carrier_id,
+        connection_id   TYPE /dmo/connection_id,
+        airport_from_id TYPE /dmo/airport_from_id,
+        airport_to_id   TYPE /dmo/airport_to_id,
+        departure_time  TYPE /dmo/flight_departure_time,
+        arrival_time    TYPE /dmo/flight_departure_time,
+        timzone_from    TYPE timezone,
+        timzone_to      TYPE timezone,
+        duration        TYPE i,
       END OF st_connection_buffer.
 
     TYPES
@@ -105,45 +103,61 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
 *     FIELDS airport_id, timzone
 *     INTO TABLE @DATA(airports).
 
+
+    DATA(today) = cl_abap_context_info=>get_system_date(  ).
+
 * Set connection details
-      SELECT
-        FROM /dmo/connection as c
-        LEFT OUTER JOIN /lrn/airport as a
-        ON c~airport_from_id = a~airport_id
-        LEFT OUTER JOIN /lrn/airport as b
-        ON c~airport_to_id = b~airport_id
-      FIELDS carrier_id, connection_id, airport_from_id, airport_to_id, departure_time, arrival_time,
-             a~timzone as timezone_from, b~timzone as timezone_to
-        INTO CORRESPONDING FIELDS OF TABLE @connections_buffer.
+    SELECT
+      FROM /lrn/connection AS c
+      LEFT OUTER JOIN /lrn/airport AS f
+        ON c~airport_from_id = f~airport_id
+      LEFT OUTER JOIN /lrn/airport AS t
+        ON c~airport_to_id = t~airport_id
+    FIELDS carrier_id, connection_id,
+           airport_from_id, airport_to_id, departure_time, arrival_time,
+           f~timzone AS timezone_from,
+           t~timzone AS timezone_to,
+           div(
+                tstmp_seconds_between(
+                  tstmp1 = dats_tims_to_tstmp(
+                             date = @today,
+                             time = c~departure_time,
+                             tzone = f~timzone ),
+                  tstmp2 = dats_tims_to_tstmp(
+                             date = @today,
+                             time = c~arrival_time,
+                             tzone = t~timzone )
+                                            ),
+                60 )
+      INTO TABLE @connections_buffer.
 
-     DATA(today) = cl_abap_context_info=>get_system_date(  ).
 
-     LOOP AT connections_buffer INTO DATA(connection).
-        TRY.
-            CONVERT DATE today
-                TIME connection-departure_time
-*                TIME ZONE airports[ airport_id = connection-airport_from_id ]-timzone
-                 TIME ZONE connection-timezone_from
-                INTO UTCLONG DATA(departure_utclong).
-
-            CONVERT DATE today
-                TIME connection-arrival_time
-*                TIME ZONE airports[ airport_id = connection-airport_to_id ]-timzone
-                TIME ZONE connection-timezone_to
-                INTO UTCLONG DATA(arrival_utclong).
-
-            connection-duration = utclong_diff(
-                  high = arrival_utclong
-                  low = departure_utclong ) / 60.
-
-            MODIFY connections_buffer FROM connection TRANSPORTING duration.
-
-        CATCH   CX_SY_ITAB_LINE_NOT_FOUND.
-            "DO nothing
-        CATCH CX_SY_CONVERSION_NO_TIME.
-            "Do nothing.
-        ENDTRY.
-     ENDLOOP.
+*     LOOP AT connections_buffer INTO DATA(connection).
+*        TRY.
+*            CONVERT DATE today
+*                TIME connection-departure_time
+**                TIME ZONE airports[ airport_id = connection-airport_from_id ]-timzone
+*                 TIME ZONE connection-timezone_from
+*                INTO UTCLONG DATA(departure_utclong).
+*
+*            CONVERT DATE today
+*                TIME connection-arrival_time
+**                TIME ZONE airports[ airport_id = connection-airport_to_id ]-timzone
+*                TIME ZONE connection-timezone_to
+*                INTO UTCLONG DATA(arrival_utclong).
+*
+*            connection-duration = utclong_diff(
+*                  high = arrival_utclong
+*                  low = departure_utclong ) / 60.
+*
+*            MODIFY connections_buffer FROM connection TRANSPORTING duration.
+*
+*        CATCH   CX_SY_ITAB_LINE_NOT_FOUND.
+*            "DO nothing
+*        CATCH CX_SY_CONVERSION_NO_TIME.
+*            "Do nothing.
+*        ENDTRY.
+*     ENDLOOP.
   ENDMETHOD.
 
   METHOD get_flights_by_carrier.
@@ -176,7 +190,13 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
     CATCH cx_sy_itab_duplicate_key.
         SELECT SINGLE
           FROM /lrn/passflight
-        FIELDS plane_type_id, seats_max, seats_occupied, seats_max - seats_occupied as seats_free, price, currency_code
+        FIELDS plane_type_id, seats_max, seats_occupied, seats_max - seats_occupied as seats_free,
+            currency_conversion( amount = price,
+                                    source_currency = currency_code,
+                                    target_currency = @currency,
+                                    exchange_rate_date = flight_date,
+                                    on_error = @sql_currency_conversion=>c_on_error-set_to_null ) AS price,
+            currency_code
          WHERE carrier_id    = @i_carrier_id
            AND connection_id = @i_connection_id
            AND flight_date   = @i_flight_date
@@ -195,19 +215,19 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
       seats_free = flight_raw-seats_free.
 
 * convert currencies
-      TRY.
-          cl_exchange_rates=>convert_to_local_currency(
-            EXPORTING
-              date              = me->flight_date
-              foreign_amount    = flight_raw-price
-              foreign_currency  = flight_raw-currency_code
-              local_currency    = me->currency
-            IMPORTING
-              local_amount      = me->price
-          ).
-        CATCH cx_exchange_rates.
-          price = flight_raw-price.
-      ENDTRY.
+*      TRY.
+*          cl_exchange_rates=>convert_to_local_currency(
+*            EXPORTING
+*              date              = me->flight_date
+*              foreign_amount    = flight_raw-price
+*              foreign_currency  = flight_raw-currency_code
+*              local_currency    = me->currency
+*            IMPORTING
+*              local_amount      = me->price
+*          ).
+*        CATCH cx_exchange_rates.
+*          price = flight_raw-price.
+*      ENDTRY.
 
 * Set connection details
 
