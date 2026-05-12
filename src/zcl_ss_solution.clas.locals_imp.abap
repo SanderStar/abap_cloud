@@ -168,14 +168,27 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
            seats_max - seats_occupied as seats_free,
            price, currency_code
      WHERE carrier_id    = @i_carrier_id
-      INTO CORRESPONDING FIELDS OF TABLE @flights_buffer.
+*     ORDER BY flight_date DESCENDING
+      APPENDING TABLE @flights_buffer.
 
-    LOOP AT flights_buffer INTO DATA(flight).
-      APPEND NEW lcl_passenger_flight( i_carrier_id    = flight-carrier_id
-                                       i_connection_id = flight-connection_id
-                                       i_flight_date   = flight-flight_date )
-              TO r_result.
-    ENDLOOP.
+    SORT flights_buffer BY carrier_id connection_id flight_date.
+    DELETE ADJACENT DUPLICATES FROM flights_buffer COMPARING carrier_id connection_id flight_date.
+
+*    LOOP AT flights_buffer INTO DATA(flight) WHERE carrier_id = i_carrier_id.
+*      APPEND NEW lcl_passenger_flight( i_carrier_id    = flight-carrier_id
+*                                       i_connection_id = flight-connection_id
+*                                       i_flight_date   = flight-flight_date )
+*              TO r_result.
+*    ENDLOOP.
+
+    r_result = VALUE #(
+      FOR flight IN flights_buffer WHERE ( carrier_id = i_carrier_id )
+        ( NEW lcl_passenger_flight(
+                i_carrier_id    = flight-carrier_id
+                i_connection_id = flight-connection_id
+                i_flight_date   = flight-flight_date
+        ) )
+    ).
 
   ENDMETHOD.
 
