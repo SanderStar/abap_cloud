@@ -182,11 +182,11 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
 *    ENDLOOP.
 
     r_result = VALUE #(
-      FOR flight IN flights_buffer WHERE ( carrier_id = i_carrier_id )
+      FOR <flight> IN flights_buffer WHERE ( carrier_id = i_carrier_id )
         ( NEW lcl_passenger_flight(
-                i_carrier_id    = flight-carrier_id
-                i_connection_id = flight-connection_id
-                i_flight_date   = flight-flight_date
+                i_carrier_id    = <flight>-carrier_id
+                i_connection_id = <flight>-connection_id
+                i_flight_date   = <flight>-flight_date
         ) )
     ).
 
@@ -585,15 +585,21 @@ CLASS lcl_carrier IMPLEMENTATION.
 
   METHOD get_average_free_seats.
 
-    DATA total TYPE i.
+*    DATA total TYPE i.
+*
+*    LOOP AT passenger_flights INTO DATA(flight).
+*
+*      total = total + flight->get_free_seats( ).
+*
+*    ENDLOOP.
+*
+*    r_result = total / lines( passenger_flights ).
 
-    LOOP AT passenger_flights INTO DATA(flight).
-
-      total = total + flight->get_free_seats( ).
-
-    ENDLOOP.
-
-    r_result = total / lines( passenger_flights ).
+    r_result = REDUCE i(
+      INIT total = 0
+      FOR flight IN passenger_flights
+      NEXT total = total + flight->get_free_seats( )
+    ) / lines( passenger_flights ).
 
   ENDMETHOD.
 
