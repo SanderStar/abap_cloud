@@ -76,8 +76,8 @@ CLASS lcl_passenger_flight DEFINITION .
         END OF st_flights_buffer.
 
     CLASS-DATA:
-            flights_buffer TYPE TABLE OF st_flights_buffer,
-            connections_buffer TYPE TABLE OF st_connection_buffer.
+            flights_buffer TYPE SORTED TABLE OF st_flights_buffer WITH NON-UNIQUE KEY carrier_id connection_id flight_date,
+            connections_buffer TYPE HASHED TABLE OF st_connection_buffer WITH UNIQUE KEY carrier_id connection_id..
 
     DATA planetype TYPE /dmo/plane_type_id.
 
@@ -171,7 +171,7 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
 *     ORDER BY flight_date DESCENDING
       APPENDING TABLE @flights_buffer.
 
-    SORT flights_buffer BY carrier_id connection_id flight_date.
+*    SORT flights_buffer BY carrier_id connection_id flight_date.
     DELETE ADJACENT DUPLICATES FROM flights_buffer COMPARING carrier_id connection_id flight_date.
 
 *    LOOP AT flights_buffer INTO DATA(flight) WHERE carrier_id = i_carrier_id.
