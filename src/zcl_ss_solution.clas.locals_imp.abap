@@ -76,8 +76,11 @@ CLASS lcl_passenger_flight DEFINITION .
         END OF st_flights_buffer.
 
     CLASS-DATA:
-            flights_buffer TYPE SORTED TABLE OF st_flights_buffer WITH NON-UNIQUE KEY carrier_id connection_id flight_date,
-            connections_buffer TYPE HASHED TABLE OF st_connection_buffer WITH UNIQUE KEY carrier_id connection_id..
+            flights_buffer TYPE HASHED TABLE OF st_flights_buffer
+                WITH UNIQUE KEY carrier_id connection_id flight_date
+                WITH NON-UNIQUE SORTED KEY sk_carrier COMPONENTS carrier_id,
+            connections_buffer TYPE HASHED TABLE OF st_connection_buffer
+                WITH UNIQUE KEY carrier_id connection_id..
 
     DATA planetype TYPE /dmo/plane_type_id.
 
@@ -503,12 +506,18 @@ CLASS lcl_carrier IMPLEMENTATION.
 
     me->carrier_id = i_carrier_id.
 
+*    SELECT SINGLE
+*      FROM /dmo/carrier
+**    FIELDS name, currency_code
+*    FIELDS concat_with_space( carrier_id, name, 1 ), currency_code
+*     WHERE carrier_id = @i_carrier_id
+*     INTO ( @me->name, @me->currency_code ).
+
     SELECT SINGLE
-      FROM /dmo/carrier
-*    FIELDS name, currency_code
-    FIELDS concat_with_space( carrier_id, name, 1 ), currency_code
-     WHERE carrier_id = @i_carrier_id
-     INTO ( @me->name, @me->currency_code ).
+    FROM /LRN/I_Carrier
+    FIELDS concat_with_space( AirlineID, Name, 1 ), CurrencyCode
+    WHERE AirlineID = @i_carrier_id
+    INTO ( @me->name, @me->currency_code ).
 
     IF sy-subrc <> 0.
       RAISE EXCEPTION TYPE cx_abap_invalid_value.

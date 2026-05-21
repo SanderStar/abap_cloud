@@ -1,4 +1,4 @@
-CLASS zcl_ss_solution DEFINITION
+CLASS zcl_s4d401_oos_interface DEFINITION
   PUBLIC
   FINAL
   CREATE PUBLIC .
@@ -12,12 +12,14 @@ ENDCLASS.
 
 
 
-CLASS ZCL_SS_SOLUTION IMPLEMENTATION.
+CLASS ZCL_S4D401_OOS_INTERFACE IMPLEMENTATION.
 
 
   METHOD if_oo_adt_classrun~main.
 
-    CONSTANTS c_carrier_id TYPE /dmo/carrier_id VALUE 'UA'.
+*    CONSTANTS c_carrier_id TYPE /dmo/carrier_id VALUE 'LH'.
+*    CONSTANTS c_carrier_id TYPE /dmo/carrier_id VALUE 'UA'.
+    CONSTANTS c_carrier_id TYPE /dmo/carrier_id VALUE 'LH'.
 
     TRY.
         DATA(carrier) = NEW lcl_carrier(  i_carrier_id = c_carrier_id ).
@@ -27,6 +29,8 @@ CLASS ZCL_SS_SOLUTION IMPLEMENTATION.
 
       CATCH cx_abap_invalid_value.
         out->write( | Carrier { c_carrier_id } does not exist | ).
+      CATCH cx_abap_auth_check_exception.
+        out->write( | No authorization to display carrier { c_carrier_id } | ).
     ENDTRY.
 
     IF carrier IS BOUND.
@@ -52,7 +56,9 @@ CLASS ZCL_SS_SOLUTION IMPLEMENTATION.
 
       IF pass_flight IS BOUND.
         out->write( name = |Found a suitable passenger flight in { days_later } days:|
-                    data = pass_flight->get_description( ) ).
+*                    data = pass_flight->get_description( ) ).
+*                    data = pass_flight->lif_output~get_output( ) ).
+                     data = pass_flight->get_output( ) ).
       ELSE.
         out->write( data = `No Passenger Flight found` ).
       ENDIF.
@@ -76,7 +82,9 @@ CLASS ZCL_SS_SOLUTION IMPLEMENTATION.
 
       IF cargo_flight IS BOUND.
         out->write( name = |Found a suitable cargo flight in { days_later2 } days:|
-                    data = cargo_flight->get_description( ) ).
+*                    data = cargo_flight->get_description( ) ).
+*                    data = cargo_flight->lif_output~get_output( ) ).
+                     data = cargo_flight->get_output( ) ).
       ELSE.
         out->write( data = `No cargo flight found` ).
       ENDIF.
