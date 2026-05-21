@@ -539,7 +539,7 @@ CLASS lcl_cargo_flight IMPLEMENTATION.
 ENDCLASS.
 
 
-CLASS lcl_carrier DEFINITION.
+CLASS lcl_carrier DEFINITION CREATE PRIVATE.
 
   PUBLIC SECTION.
 
@@ -547,15 +547,23 @@ CLASS lcl_carrier DEFINITION.
     ALIASES: get_output FOR lif_output~get_output,
              tt_output FOR lif_output~tt_output,
              t_output FOR lif_output~t_output.
+    CLASS-METHODS get_instance
+      IMPORTING
+        i_carrier_id TYPE /dmo/carrier_id
+      RETURNING
+        value(r_result) TYPE REF TO lcl_carrier
+      RAISING
+        cx_abap_invalid_value
+        cx_abap_auth_check_exception.
 
 
     DATA carrier_id TYPE /dmo/carrier_id READ-ONLY.
 
     METHODS constructor
       IMPORTING
-                i_carrier_id TYPE /dmo/carrier_id
-      RAISING   cx_abap_invalid_value
-                cx_abap_auth_check_exception.
+                i_carrier_id TYPE /dmo/carrier_id.
+*      RAISING   cx_abap_invalid_value
+*                cx_abap_auth_check_exception.
 
     METHODS find_passenger_flight
       IMPORTING
@@ -600,9 +608,7 @@ ENDCLASS.
 
 CLASS lcl_carrier IMPLEMENTATION.
 
-  METHOD constructor.
-
-    me->carrier_id = i_carrier_id.
+  METHOD get_instance.
 
 *    SELECT SINGLE
 *      FROM /lrn/i_carrier
@@ -612,9 +618,10 @@ CLASS lcl_carrier IMPLEMENTATION.
 
     SELECT SINGLE
       FROM /lrn/carrier
-    FIELDS concat_with_space( carrier_id, name, 1 ) , currency_code
+    FIELDS concat_with_space( carrier_id, name, 1 ) as name , currency_code
      WHERE carrier_id = @i_carrier_id
-     INTO ( @me->name, @me->currency_code ).
+*     INTO ( @me->name, @me->currency_code ).
+    INTO @DATA(details).
 *
     IF sy-subrc <> 0.
       RAISE EXCEPTION TYPE cx_abap_invalid_value.
@@ -628,6 +635,20 @@ CLASS lcl_carrier IMPLEMENTATION.
     IF sy-subrc <> 0.
       RAISE EXCEPTION TYPE cx_abap_auth_check_exception.
     ENDIF.
+
+    r_result = NEW #(
+      i_carrier_id = i_carrier_id
+    ).
+
+    r_result->name = details-name.
+    r_result->currency_code = details-currency_code.
+
+  ENDMETHOD.
+
+  METHOD constructor.
+
+    me->carrier_id = i_carrier_id.
+
 
     DATA(passenger_flights) =
         lcl_passenger_flight=>get_flights_by_carrier(

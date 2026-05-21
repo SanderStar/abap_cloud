@@ -78,7 +78,8 @@ CLASS ltcl_find_flights IMPLEMENTATION.
 
     TRY.
 
-        the_carrier = NEW lcl_carrier( i_carrier_id = some_flight_data-carrier_id ).
+*        the_carrier = NEW lcl_carrier( i_carrier_id = some_flight_data-carrier_id ).
+        the_carrier = lcl_carrier=>get_instance( i_carrier_id = some_flight_data-carrier_id ).
 
       CATCH cx_abap_invalid_value.
 
