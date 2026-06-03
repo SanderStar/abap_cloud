@@ -3,53 +3,65 @@ strict ( 2 );
 with draft;
 extensible;
 define behavior for ZR_RAP_TRAVEL_STAR alias Travel
-persistent table ZRAP_TRAVEL_STAR
+persistent table zrap_travel_star
 extensible
-draft table ZDRAP_TRVL_STAR
+draft table zdrap_trvl_star
 etag master LocalLastChangedAt
 lock master total etag LastChangedAt
-authorization master( global )
+authorization master ( global )
 {
   field ( readonly )
-   TravelUUID,
-   LocalCreatedBy,
-   LocalCreatedAt,
-   LocalLastChangedBy,
-   LocalLastChangedAt,
-   LastChangedAt;
+  TravelUUID,
+  LocalCreatedBy,
+  LocalCreatedAt,
+  LocalLastChangedBy,
+  LocalLastChangedAt,
+  LastChangedAt;
 
   field ( numbering : managed )
-   TravelUUID;
+  TravelUUID;
 
+  field ( mandatory )
+  CustomerID,
+  BeginDate,
+  EndDate;
 
   create;
   update;
   delete;
 
+  determination setStatusToOpen on modify { create; }
+
+  validation validateCustomer on save { create; field CustomerID; }
+  validation validateDates on save { create; field BeginDate, EndDate; }
+
   draft action Activate optimized;
   draft action Discard;
   draft action Edit;
   draft action Resume;
-  draft determine action Prepare;
-
-  mapping for ZRAP_TRAVEL_STAR corresponding extensible
+  draft determine action Prepare
   {
-    TravelUUID = TRAVEL_UUID;
-    TravelID = TRAVEL_ID;
-    AgencyID = AGENCY_ID;
-    CustomerID = CUSTOMER_ID;
-    BeginDate = BEGIN_DATE;
-    EndDate = END_DATE;
-    BookingFee = BOOKING_FEE;
-    TotalPrice = TOTAL_PRICE;
-    CurrencyCode = CURRENCY_CODE;
-    Description = DESCRIPTION;
-    OverallStatus = OVERALL_STATUS;
-    LocalCreatedBy = LOCAL_CREATED_BY;
-    LocalCreatedAt = LOCAL_CREATED_AT;
-    LocalLastChangedBy = LOCAL_LAST_CHANGED_BY;
-    LocalLastChangedAt = LOCAL_LAST_CHANGED_AT;
-    LastChangedAt = LAST_CHANGED_AT;
-  }
+    validation validateCustomer;
+    validation validateDates; }
+
+  mapping for zrap_travel_star corresponding extensible
+    {
+      TravelUUID         = TRAVEL_UUID;
+      TravelID           = TRAVEL_ID;
+      AgencyID           = AGENCY_ID;
+      CustomerID         = CUSTOMER_ID;
+      BeginDate          = BEGIN_DATE;
+      EndDate            = END_DATE;
+      BookingFee         = BOOKING_FEE;
+      TotalPrice         = TOTAL_PRICE;
+      CurrencyCode       = CURRENCY_CODE;
+      Description        = DESCRIPTION;
+      OverallStatus      = OVERALL_STATUS;
+      LocalCreatedBy     = LOCAL_CREATED_BY;
+      LocalCreatedAt     = LOCAL_CREATED_AT;
+      LocalLastChangedBy = LOCAL_LAST_CHANGED_BY;
+      LocalLastChangedAt = LOCAL_LAST_CHANGED_AT;
+      LastChangedAt      = LAST_CHANGED_AT;
+    }
 
 }
