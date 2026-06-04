@@ -64,4 +64,7 @@ authorization master ( global )
       LastChangedAt      = LAST_CHANGED_AT;
     }
 
+   action setDefaultStatus result [1] $self;
+
+   action deductDiscount result [1] $self;
 }

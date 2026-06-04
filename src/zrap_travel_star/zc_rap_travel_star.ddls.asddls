@@ -1,16 +1,16 @@
 @Metadata.allowExtensions: true
 @Metadata.ignorePropagatedAnnotations: true
-@Endusertext: {
-  Label: '###GENERATED Core Data Service Entity'
+@EndUserText: {
+  label: '###GENERATED Core Data Service Entity'
 }
-@Objectmodel: {
-  Sapobjectnodetype.Name: 'ZRAP_TRAVEL_STAR'
+@ObjectModel: {
+  sapObjectNodeType.name: 'ZRAP_TRAVEL_STAR'
 }
 @AccessControl.authorizationCheck: #MANDATORY
 define root view entity ZC_RAP_TRAVEL_STAR
-  provider contract TRANSACTIONAL_QUERY
+  provider contract transactional_query
   as projection on ZR_RAP_TRAVEL_STAR
-  association [1..1] to ZR_RAP_TRAVEL_STAR as _BaseEntity on $projection.TRAVELUUID = _BaseEntity.TRAVELUUID
+  association [1..1] to ZR_RAP_TRAVEL_STAR as _BaseEntity on $projection.TravelUUID = _BaseEntity.TravelUUID
 {
   key TravelUUID,
   TravelID,
@@ -19,41 +19,41 @@ define root view entity ZC_RAP_TRAVEL_STAR
   BeginDate,
   EndDate,
   @Semantics: {
-    Amount.Currencycode: 'CurrencyCode'
+    amount.currencyCode: 'CurrencyCode'
   }
   BookingFee,
   @Semantics: {
-    Amount.Currencycode: 'CurrencyCode'
+    amount.currencyCode: 'CurrencyCode'
   }
   TotalPrice,
   @Consumption: {
-    Valuehelpdefinition: [ {
-      Entity.Element: 'Currency', 
-      Entity.Name: 'I_CurrencyStdVH', 
-      Useforvalidation: true
+    valueHelpDefinition: [ {
+      entity.element: 'Currency', 
+      entity.name: 'I_CurrencyStdVH', 
+      useForValidation: true
     } ]
   }
   CurrencyCode,
   Description,
   OverallStatus,
   @Semantics: {
-    User.Createdby: true
+    user.createdBy: true
   }
   LocalCreatedBy,
   @Semantics: {
-    Systemdatetime.Createdat: true
+    systemDateTime.createdAt: true
   }
   LocalCreatedAt,
   @Semantics: {
-    User.Localinstancelastchangedby: true
+    user.localInstanceLastChangedBy: true
   }
   LocalLastChangedBy,
   @Semantics: {
-    Systemdatetime.Localinstancelastchangedat: true
+    systemDateTime.localInstanceLastChangedAt: true
   }
   LocalLastChangedAt,
   @Semantics: {
-    Systemdatetime.Lastchangedat: true
+    systemDateTime.lastChangedAt: true
   }
   LastChangedAt,
   _BaseEntity
