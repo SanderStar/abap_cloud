@@ -64,7 +64,13 @@ authorization master ( global )
       LastChangedAt      = LAST_CHANGED_AT;
     }
 
+   factory action copyTravel [1];
+
    action setDefaultStatus result [1] $self;
 
-   action deductDiscount result [1] $self;
+   action deductDiscount parameter /dmo/a_travel_discount result [1] $self;
+
+   action acceptTravel result [1] $self;
+   action rejectTravel result [1] $self;
+
 }

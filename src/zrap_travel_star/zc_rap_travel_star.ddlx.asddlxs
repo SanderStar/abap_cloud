@@ -115,16 +115,16 @@ annotate view ZC_RAP_TRAVEL_STAR with
   Description;
   
   @UI: {
-  lineItem:       [ { position: 100, importance: #HIGH }                          
-                    //,{ type: #FOR_ACTION, dataAction: 'copyTravel', label: 'Copy Travel' } 
-                    //,{ type: #FOR_ACTION, dataAction: 'acceptTravel', label: 'Accept Travel' }
-                    //,{ type: #FOR_ACTION, dataAction: 'rejectTravel', label: 'Reject Travel' }
+  lineItem:       [ { position: 100, importance: #HIGH }  
+                      ,{ type: #FOR_ACTION, dataAction: 'copyTravel', label: 'Copy Travel' } 
+                      ,{ type: #FOR_ACTION, dataAction: 'acceptTravel', label: 'Accept Travel' }
+                      ,{ type: #FOR_ACTION, dataAction: 'rejectTravel', label: 'Reject Travel' }
        ],
   identification: [ { position: 100 }                          
                    ,{ type: #FOR_ACTION, dataAction: 'setDefaultStatus', label: 'Set default status (open)' }
                    ,{ type: #FOR_ACTION, dataAction: 'deductDiscount', label: 'Deduct Discount' } 
-                   //,{ type: #FOR_ACTION, dataAction: 'acceptTravel', label: 'Accept Travel' }
-                   //,{ type: #FOR_ACTION, dataAction: 'rejectTravel', label: 'Reject Travel' }
+                   ,{ type: #FOR_ACTION, dataAction: 'acceptTravel', label: 'Accept Travel' }
+                   ,{ type: #FOR_ACTION, dataAction: 'rejectTravel', label: 'Reject Travel' }
        ],
     textArrangement: #TEXT_ONLY
   }
