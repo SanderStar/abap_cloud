@@ -1,0 +1,32 @@
+projection implementation in class ZBP_C_GE328763_SS unique;
+strict ( 2 );
+extensible;
+use draft;
+use side effects;
+define behavior for ZC_GE328763_SS alias ShoppingCart
+extensible
+use etag
+{
+  use create;
+  use update;
+  use delete;
+
+  use action Edit;
+  use action Activate;
+  use action Discard;
+  use action Resume;
+  use action Prepare;
+
+  // should be updatable via EML calls
+  // that are not using "in local mode"
+  field ( readonly )
+  OverallStatus,
+  SalesOrderStatus,
+  Salesorder,
+  TotalPrice,
+  BgpfStatus,
+  BgpgProcessName,
+  ManageSalesOrderUrl,
+  Notes;
+
+}
